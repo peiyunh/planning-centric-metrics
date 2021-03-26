@@ -37,12 +37,11 @@ from .planning_kl import make_rgba, render_observation
 
 
 def viz_data(version, dataroot='/data/nuscenes',
-             map_folder='/data/nuscenes/mini/',
              ego_only=False, t_spacing=0.25, bsz=16,
              num_workers=10, flip_aug=True):
     """Visualize the training/validation data.
     """
-    trainloader, valloader = compile_data(version, dataroot, map_folder,
+    trainloader, valloader = compile_data(version, dataroot,
                                           ego_only, t_spacing,
                                           bsz, num_workers, flip_aug)
     def style_ax():
@@ -79,13 +78,14 @@ def viz_data(version, dataroot='/data/nuscenes',
             plt.close(fig)
 
 
+# NOTE: masks come from recorded expert trajectories
+#       rather than the planner
 def scrape_masks(version, out_name='masks.json', dataroot='/data/nuscenes',
-                 map_folder='/data/nuscenes/mini/',
                  ego_only=False, t_spacing=0.25, bsz=16,
                  num_workers=10, flip_aug=False):
     """Scrape a mask of where the car might exist at future timesteps.
     """
-    trainloader, valloader = compile_data(version, dataroot, map_folder,
+    trainloader, valloader = compile_data(version, dataroot,
                                           ego_only, t_spacing, bsz,
                                           num_workers,
                                           flip_aug=flip_aug, only_y=True)
@@ -125,7 +125,7 @@ def viz_masks(out_name, imname='masks.jpg'):
 
 
 def eval_viz(version, modelpath,
-             dataroot='/data/nuscenes', map_folder='/data/nuscenes/mini/',
+             dataroot='/data/nuscenes',
              ego_only=True, t_spacing=0.5, bsz=8, num_workers=10,
              flip_aug=False, dropout_p=0.0, mask_json='masks_trainval.json',
              gpuid=0):
@@ -135,7 +135,7 @@ def eval_viz(version, modelpath,
         else torch.device('cpu')
     print(f'using device: {device}')
 
-    trainloader, valloader = compile_data(version, dataroot, map_folder,
+    trainloader, valloader = compile_data(version, dataroot,
                                           ego_only, t_spacing,
                                           bsz, num_workers, flip_aug)
 
@@ -173,7 +173,7 @@ def eval_viz(version, modelpath,
 
 
 def false_neg_viz(version, modelpath,
-                  dataroot='/data/nuscenes', map_folder='/data/nuscenes/mini/',
+                  dataroot='/data/nuscenes',
                   ego_only=True, t_spacing=0.5, bsz=8,
                   num_workers=10, flip_aug=False,
                   dropout_p=0.0, mask_json='masks_trainval.json',
@@ -184,7 +184,7 @@ def false_neg_viz(version, modelpath,
         else torch.device('cpu')
     print(f'using device: {device}')
 
-    trainloader, valloader = compile_data(version, dataroot, map_folder,
+    trainloader, valloader = compile_data(version, dataroot,
                                           ego_only, t_spacing,
                                           bsz, num_workers, flip_aug)
 
@@ -262,7 +262,7 @@ def false_neg_viz(version, modelpath,
 
 
 def false_pos_viz(version, modelpath,
-                  dataroot='/data/nuscenes', map_folder='/data/nuscenes/mini/',
+                  dataroot='/data/nuscenes',
                   ego_only=True, t_spacing=0.5, bsz=8,
                   num_workers=10, flip_aug=False,
                   dropout_p=0.0, mask_json='masks_trainval.json',
@@ -273,7 +273,7 @@ def false_pos_viz(version, modelpath,
         else torch.device('cpu')
     print(f'using device: {device}')
 
-    trainloader, valloader = compile_data(version, dataroot, map_folder,
+    trainloader, valloader = compile_data(version, dataroot,
                                           ego_only, t_spacing,
                                           bsz, num_workers, flip_aug)
 
@@ -340,16 +340,15 @@ def false_pos_viz(version, modelpath,
 
 def eval_test(version, eval_set, result_path, modelpath='./planner.pt',
               dataroot='/data/nuscenes',
-              map_folder='/data/nuscenes/mini/',
               nworkers=10, plot_kextremes=5,
               gpuid=0, mask_json='./masks_trainval.json',
               save_output=None):
     """Evaluate detections with PKL.
     """
     nusc = NuScenes(version='v1.0-{}'.format(version),
-                    dataroot=os.path.join(dataroot, version),
+                    dataroot=dataroot,
                     verbose=True)
-    nusc_maps = get_nusc_maps(map_folder)
+    nusc_maps = get_nusc_maps(dataroot)
     cfg = config_factory('detection_cvpr_2019')
     device = torch.device(f'cuda:{gpuid}') if gpuid >= 0\
         else torch.device('cpu')
@@ -373,7 +372,7 @@ def generate_perfect(version, eval_set, dataroot='/data/nuscenes'):
     """Generate perfect detections.
     """
     nusc = NuScenes(version='v1.0-{}'.format(version),
-                    dataroot=os.path.join(dataroot, version),
+                    dataroot=dataroot,
                     verbose=True)
     cfg = config_factory('detection_cvpr_2019')
 
@@ -394,7 +393,7 @@ def generate_drop_noise(version, eval_set, drop_p, dataroot='/data/nuscenes'):
     probability p.
     """
     nusc = NuScenes(version='v1.0-{}'.format(version),
-                    dataroot=os.path.join(dataroot, version),
+                    dataroot=dataroot,
                     verbose=True)
     cfg = config_factory('detection_cvpr_2019')
 
@@ -415,7 +414,7 @@ def og_detection_eval(version, eval_set, result_path,
     """Evaluate according to NDS.
     """
     nusc = NuScenes(version='v1.0-{}'.format(version),
-                    dataroot=os.path.join(dataroot, version),
+                    dataroot=dataroot,
                     verbose=True)
     cfg = config_factory('detection_cvpr_2019')
     nusc_eval = DetectionEval(nusc, config=cfg, result_path=result_path,
@@ -439,7 +438,7 @@ def pkl_distribution_plot(version, pkl_result_path, plot_name='dist.jpg',
     plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
     nusc = NuScenes(version='v1.0-{}'.format(version),
-                    dataroot=os.path.join(dataroot, version),
+                    dataroot=dataroot,
                     verbose=True)
 
     with open(pkl_result_path, 'r') as reader:

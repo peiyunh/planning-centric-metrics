@@ -21,8 +21,10 @@ from .models import compile_model
 from .tools import SimpleLoss, eval_model
 
 
+# NOTE: here they use a different loss function compared to the original neural motion planner
+#       the original neural motion planner uses a margin loss which enables usage of auxiliary map info
+#       this paper treats the problem as a binary segmentation and uses a cross entropy loss.
 def train(version, dataroot='/data/nuscenes',
-          map_folder='/data/nuscenes/mini/',
           ego_only=True, t_spacing=0.25, bsz=16, num_workers=10, flip_aug=True,
           pos_weight=10.0, loss_clip=True, lr=2e-3, weight_decay=1e-5,
           dropout_p=0.0, nepochs=10000, mask_json='masks_trainval.json',
@@ -31,7 +33,7 @@ def train(version, dataroot='/data/nuscenes',
         else torch.device('cpu')
     print(f'using device: {device}')
 
-    trainloader, valloader = compile_data(version, dataroot, map_folder,
+    trainloader, valloader = compile_data(version, dataroot,
                                           ego_only, t_spacing,
                                           bsz, num_workers, flip_aug)
 

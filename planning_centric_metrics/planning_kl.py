@@ -24,6 +24,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import os
 
+from PIL import Image
+
 from .models import compile_model
 
 
@@ -390,7 +392,7 @@ class EvalLoader(torch.utils.data.Dataset):
 
 def calculate_pkl(gt_boxes, pred_boxes, sample_tokens, nusc,
                   nusc_maps, device, nworkers,
-                  bsz=128, plot_kextremes=0, verbose=True,
+                  bsz=64, plot_kextremes=0, verbose=True,
                   modelpath='./planner.pt',
                   mask_json='./masks_trainval.json'):
     r""" Computes the PKL https://arxiv.org/abs/2004.08745. It is designed to
@@ -456,18 +458,32 @@ def calculate_pkl(gt_boxes, pred_boxes, sample_tokens, nusc,
         print('calculating pkl...')
 
     all_pkls = []
-    for gtxs, predxs in tqdm(dataloader):
+    for i, (gtxs, predxs) in tqdm(enumerate(dataloader)):
         with torch.no_grad():
             gtdist = model(gtxs.to(device))
             gtdist_sig = gtdist.sigmoid()
             preddist = model(predxs.to(device))
 
+        # NOTE: we only count KL divergence in masked areas
         pkls = (F.binary_cross_entropy_with_logits(preddist[:, masks],
                                                    gtdist_sig[:, masks],
                                                    reduction='none')
                 - F.binary_cross_entropy_with_logits(gtdist[:, masks],
                                                      gtdist_sig[:, masks],
                                                      reduction='none')).sum(1)
+
+        # NOTE: what does gtdist and preddist encode?
+        for j in range(len(preddist)):
+            gtmap = (gtdist_sig[j] * masks).cpu().numpy()
+            gtmap = gtmap / gtmap.max(axis=(1, 2), keepdims=True)
+            gtmap = np.pad(gtmap, ((0, 0), (1, 1), (1, 1)), constant_values=1)
+            gtimg = np.concatenate(gtmap, axis=-1)
+            predmap = (preddist[j].sigmoid() * masks).cpu().numpy()
+            predmap = predmap / predmap.max(axis=(1, 2), keepdims=True)
+            predmap = np.pad(predmap, ((0, 0), (1, 1), (1, 1)), constant_values=1)
+            predimg = np.concatenate(predmap, axis=-1)
+            catimg = np.concatenate((gtimg, predimg))
+            plt.imsave(f"heatmaps/batch_{i:03d}_example_{j:03d}.png", catimg)
 
         all_pkls.append(pkls.cpu())
     all_pkls = torch.cat(all_pkls)
@@ -477,7 +493,7 @@ def calculate_pkl(gt_boxes, pred_boxes, sample_tokens, nusc,
         print(f'plotting {plot_kextremes} timestamps...')
     if plot_kextremes > 0:
         worst_ixes = all_pkls.topk(plot_kextremes).indices
-        out = [dataset[i] for i in worst_ixes]
+        out = [dataset[k] for k in worst_ixes]
         gtxs, predxs = list(zip(*out))
         gtxs, predxs = torch.stack(gtxs), torch.stack(predxs)
         with torch.no_grad():

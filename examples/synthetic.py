@@ -23,8 +23,8 @@ import os
 from planning_centric_metrics import calculate_pkl
 
 
-def get_nusc_maps(map_folder):
-    nusc_maps = {map_name: NuScenesMap(dataroot=map_folder,
+def get_nusc_maps(dataroot):
+    nusc_maps = {map_name: NuScenesMap(dataroot=dataroot,
                  map_name=map_name) for map_name in [
                     "singapore-hollandvillage",
                     "singapore-queenstown",
@@ -41,14 +41,13 @@ def get_example_submission():
 
 
 def quick_test(dataroot='/data/nuscenes',
-               map_folder='/data/nuscenes/mini',
                gpuid=0, nworkers=10):
     """Evaluate detections with PKL.
     """
     nusc = NuScenes(version='v1.0-mini',
-                    dataroot=os.path.join(dataroot, 'mini'),
+                    dataroot=dataroot,
                     verbose=True)
-    nusc_maps = get_nusc_maps(map_folder)
+    nusc_maps = get_nusc_maps(dataroot)
     cfg = config_factory('detection_cvpr_2019')
     device = torch.device(f'cuda:{gpuid}') if gpuid >= 0\
         else torch.device('cpu')

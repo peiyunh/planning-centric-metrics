@@ -318,12 +318,12 @@ def worker_init_fn(x):
     np.random.seed(42 + x)
 
 
-def compile_data(version, dataroot, map_folder, ego_only, t_spacing,
+def compile_data(version, dataroot, ego_only, t_spacing,
                  bsz, num_workers, flip_aug, only_y=False):
     nusc = NuScenes(version='v1.0-{}'.format(version),
-                    dataroot=os.path.join(dataroot, version),
+                    dataroot=dataroot,
                     verbose=False)
-    nusc_maps = get_nusc_maps(map_folder)
+    nusc_maps = get_nusc_maps(dataroot)
 
     traindata = ClusterLoader(nusc, nusc_maps, ego_only, flip_aug=flip_aug,
                               is_train=True, t_spacing=t_spacing,

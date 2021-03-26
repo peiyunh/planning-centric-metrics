@@ -30,6 +30,5 @@ if __name__ == '__main__':
         'og_detection_eval': explore.og_detection_eval,
         'generate_drop_noise': explore.generate_drop_noise,
         'pkl_distribution_plot': explore.pkl_distribution_plot,
-
         'train': train.train,
     })
